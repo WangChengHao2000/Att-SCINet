@@ -173,6 +173,7 @@ class SCINet_Tree(nn.Module):
 
         self.workingblock = LevelSCINet(
             attention_d=self.attention_d,
+            attention_module=attention_module,
             in_planes=in_planes,
             kernel_size=kernel_size,
             dropout=dropout,
