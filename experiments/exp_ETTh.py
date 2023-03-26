@@ -20,6 +20,7 @@ from models.SCINet_decompose import SCINet_decompose
 
 import matplotlib.pyplot as plt
 
+
 class Exp_ETTh(Exp_Basic):
     def __init__(self, args):
         super(Exp_ETTh, self).__init__(args)
@@ -68,7 +69,6 @@ class Exp_ETTh(Exp_Basic):
                 positionalE=self.args.positionalEcoding,
                 modified=True,
                 RIN=self.args.RIN)
-        print(model)
         return model.double()
 
     def _get_data(self, flag):
@@ -497,6 +497,8 @@ class Exp_ETTh(Exp_Basic):
         path = os.path.join(self.args.checkpoints, setting)
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
+
+        print(best_model_path)
 
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             pred, pred_scale, mid, mid_scale, true, true_scale = self._process_one_batch_SCINet(
