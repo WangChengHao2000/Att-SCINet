@@ -515,16 +515,19 @@ class Exp_ETTh(Exp_Basic):
         # print(pred_scale.size())
         # print(show_pred.size())
 
-        for i in range(7):
-            plt.subplot(3, 3, i + 1)
-            x = []
-            # y1 = np.append(show_provide[:, i], show_pred[:, i])
-            # y2 = np.append(show_provide[:, i], show_true[:, i])
-            y1 = show_pred[:, i]
-            y2 = show_true[:, i]
-            for j in range(24):
-                x.append(j)
-            plt.plot(x, y1, 'r')
-            plt.plot(x, y2, 'b')
+        # for i in range(7):
+        #     plt.subplot(3, 3, i + 1)
+        #     x = []
+        #     # y1 = np.append(show_provide[:, i], show_pred[:, i])
+        #     # y2 = np.append(show_provide[:, i], show_true[:, i])
+        #     y1 = show_pred[:, i]
+        #     y2 = show_true[:, i]
+        #     for j in range(24):
+        #         x.append(j)
+        #     plt.plot(x, y1, 'r')
+        #     plt.plot(x, y2, 'b')
+        #
+        # plt.show()
 
+        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
         plt.show()
