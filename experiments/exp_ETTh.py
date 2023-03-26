@@ -505,12 +505,13 @@ class Exp_ETTh(Exp_Basic):
                 test_data, batch_x, batch_y)
             break
 
-        print(pred_scale.size())
-
         show_provide = batch_x[0, :, :].detach().cpu().numpy()
         show_pred = pred_scale[0, :, :].detach().cpu().numpy()
         show_true = true_scale[0, :, :].detach().cpu().numpy()
 
+        show_pred = np.reshape(pred_scale.detach().cpu().numpy(), (24, 7))
+        show_true = np.reshape(true_scale.detach().cpu().numpy(), (24, 7))
+        
         print(pred_scale.size())
         print(show_pred.size())
 
