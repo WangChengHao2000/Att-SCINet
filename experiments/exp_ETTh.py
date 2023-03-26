@@ -514,7 +514,7 @@ class Exp_ETTh(Exp_Basic):
             # y2 = np.append(show_provide[:, i], show_true[:, i])
             y1 = show_pred[:, i]
             y2 = show_true[:, i]
-            for j in range(168):
+            for j in range(24):
                 x.append(j)
             plt.plot(x, y1, 'r')
             plt.plot(x, y2, 'b')
