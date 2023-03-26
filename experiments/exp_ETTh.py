@@ -19,6 +19,7 @@ from models.SCINet import SCINet
 from models.SCINet_decompose import SCINet_decompose
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 class Exp_ETTh(Exp_Basic):
@@ -487,20 +488,14 @@ class Exp_ETTh(Exp_Basic):
         label_len = self.args.label_len
         pred_len = self.args.pred_len
 
-        preds = []
-        trues = []
-        mids = []
-        pred_scales = []
-        true_scales = []
-        mid_scales = []
-
         path = os.path.join(self.args.checkpoints, setting)
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
-        print(best_model_path)
+        print(setting)
 
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+            print(batch_x)
             pred, pred_scale, mid, mid_scale, true, true_scale = self._process_one_batch_SCINet(
                 test_data, batch_x, batch_y)
             break
@@ -509,25 +504,6 @@ class Exp_ETTh(Exp_Basic):
         show_pred = pred_scale[0, :, :].detach().cpu().numpy()
         show_true = true_scale[0, :, :].detach().cpu().numpy()
 
-        # show_pred = np.reshape(pred_scale.detach().cpu().numpy(), (24, 7))
-        # show_true = np.reshape(true_scale.detach().cpu().numpy(), (24, 7))
-        #
-        # print(pred_scale.size())
-        # print(show_pred.size())
-
-        # for i in range(7):
-        #     plt.subplot(3, 3, i + 1)
-        #     x = []
-        #     # y1 = np.append(show_provide[:, i], show_pred[:, i])
-        #     # y2 = np.append(show_provide[:, i], show_true[:, i])
-        #     y1 = show_pred[:, i]
-        #     y2 = show_true[:, i]
-        #     for j in range(24):
-        #         x.append(j)
-        #     plt.plot(x, y1, 'r')
-        #     plt.plot(x, y2, 'b')
-        #
-        # plt.show()
-
-        plt.plot([1, 2, 3, 4], [1, 4, 9, 16])
-        plt.show()
+        pd.DataFrame(show_provide).to_csv(setting + '1.csv', index=False)
+        pd.DataFrame(show_pred).to_csv(setting + '2.csv', index=False)
+        pd.DataFrame(show_true).to_csv(setting + '3.csv', index=False)
