@@ -509,11 +509,11 @@ class Exp_ETTh(Exp_Basic):
         show_pred = pred_scale[0, :, :].detach().cpu().numpy()
         show_true = true_scale[0, :, :].detach().cpu().numpy()
 
-        show_pred = np.reshape(pred_scale.detach().cpu().numpy(), (24, 7))
-        show_true = np.reshape(true_scale.detach().cpu().numpy(), (24, 7))
-        
-        print(pred_scale.size())
-        print(show_pred.size())
+        # show_pred = np.reshape(pred_scale.detach().cpu().numpy(), (24, 7))
+        # show_true = np.reshape(true_scale.detach().cpu().numpy(), (24, 7))
+        #
+        # print(pred_scale.size())
+        # print(show_pred.size())
 
         for i in range(7):
             plt.subplot(3, 3, i + 1)
