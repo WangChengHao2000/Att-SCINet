@@ -9,6 +9,7 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import warnings
+
 warnings.filterwarnings('ignore')
 from data_process.etth_data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_Pred
 from experiments.exp_basic import Exp_Basic
@@ -17,10 +18,12 @@ from metrics.ETTh_metrics import metric
 from models.SCINet import SCINet
 from models.SCINet_decompose import SCINet_decompose
 
+import matplotlib.pyplot as plt
+
 class Exp_ETTh(Exp_Basic):
     def __init__(self, args):
         super(Exp_ETTh, self).__init__(args)
-    
+
     def _build_model(self):
 
         if self.args.features == 'S':
@@ -34,36 +37,36 @@ class Exp_ETTh(Exp_Basic):
             model = SCINet_decompose(
                 output_len=self.args.pred_len,
                 input_len=self.args.seq_len,
-                input_dim= in_dim,
+                input_dim=in_dim,
                 attention_module=self.args.attention,
-                hid_size = self.args.hidden_size,
+                hid_size=self.args.hidden_size,
                 num_stacks=self.args.stacks,
                 num_levels=self.args.levels,
-                concat_len = self.args.concat_len,
-                groups = self.args.groups,
-                kernel = self.args.kernel,
-                dropout = self.args.dropout,
-                single_step_output_One = self.args.single_step_output_One,
-                positionalE = self.args.positionalEcoding,
-                modified = True,
+                concat_len=self.args.concat_len,
+                groups=self.args.groups,
+                kernel=self.args.kernel,
+                dropout=self.args.dropout,
+                single_step_output_One=self.args.single_step_output_One,
+                positionalE=self.args.positionalEcoding,
+                modified=True,
                 RIN=self.args.RIN)
         else:
             model = SCINet(
                 output_len=self.args.pred_len,
                 input_len=self.args.seq_len,
-                input_dim= in_dim,
+                input_dim=in_dim,
                 attention_module=self.args.attention,
-                hid_size = self.args.hidden_size,
+                hid_size=self.args.hidden_size,
                 num_stacks=self.args.stacks,
                 num_levels=self.args.levels,
                 num_decoder_layer=self.args.num_decoder_layer,
-                concat_len = self.args.concat_len,
-                groups = self.args.groups,
-                kernel = self.args.kernel,
-                dropout = self.args.dropout,
-                single_step_output_One = self.args.single_step_output_One,
-                positionalE = self.args.positionalEcoding,
-                modified = True,
+                concat_len=self.args.concat_len,
+                groups=self.args.groups,
+                kernel=self.args.kernel,
+                dropout=self.args.dropout,
+                single_step_output_One=self.args.single_step_output_One,
+                positionalE=self.args.positionalEcoding,
+                modified=True,
                 RIN=self.args.RIN)
         print(model)
         return model.double()
@@ -72,25 +75,34 @@ class Exp_ETTh(Exp_Basic):
         args = self.args
 
         data_dict = {
-            'ETTh1':Dataset_ETT_hour,
-            'ETTh2':Dataset_ETT_hour,
-            'ETTm1':Dataset_ETT_minute,
-            'ETTm2':Dataset_ETT_minute,
-            'WTH':Dataset_Custom,
-            'ECL':Dataset_Custom,
-            'Solar':Dataset_Custom,
-            'custom':Dataset_Custom,
+            'ETTh1': Dataset_ETT_hour,
+            'ETTh2': Dataset_ETT_hour,
+            'ETTm1': Dataset_ETT_minute,
+            'ETTm2': Dataset_ETT_minute,
+            'WTH': Dataset_Custom,
+            'ECL': Dataset_Custom,
+            'Solar': Dataset_Custom,
+            'custom': Dataset_Custom,
         }
         Data = data_dict[self.args.data]
-        timeenc = 0 if args.embed!='timeF' else 1
+        timeenc = 0 if args.embed != 'timeF' else 1
 
         if flag == 'test':
-            shuffle_flag = False; drop_last = True; batch_size = args.batch_size; freq=args.freq
-        elif flag=='pred':
-            shuffle_flag = False; drop_last = False; batch_size = 1; freq=args.detail_freq
+            shuffle_flag = False;
+            drop_last = True;
+            batch_size = args.batch_size;
+            freq = args.freq
+        elif flag == 'pred':
+            shuffle_flag = False;
+            drop_last = False;
+            batch_size = 1;
+            freq = args.detail_freq
             Data = Dataset_Pred
         else:
-            shuffle_flag = True; drop_last = True; batch_size = args.batch_size; freq=args.freq
+            shuffle_flag = True;
+            drop_last = True;
+            batch_size = args.batch_size;
+            freq = args.freq
         data_set = Data(
             root_path=args.root_path,
             data_path=args.data_path,
@@ -116,7 +128,7 @@ class Exp_ETTh(Exp_Basic):
     def _select_optimizer(self):
         model_optim = optim.Adam(self.model.parameters(), lr=self.args.lr)
         return model_optim
-    
+
     def _select_criterion(self, losstype):
         if losstype == "mse":
             criterion = nn.MSELoss()
@@ -150,7 +162,8 @@ class Exp_ETTh(Exp_Basic):
                 true_scales.append(true_scale.detach().cpu().numpy())
 
             elif self.args.stacks == 2:
-                loss = criterion(pred.detach().cpu(), true.detach().cpu()) + criterion(mid.detach().cpu(), true.detach().cpu())
+                loss = criterion(pred.detach().cpu(), true.detach().cpu()) + criterion(mid.detach().cpu(),
+                                                                                       true.detach().cpu())
 
                 preds.append(pred.detach().cpu().numpy())
                 trues.append(true.detach().cpu().numpy())
@@ -178,8 +191,16 @@ class Exp_ETTh(Exp_Basic):
 
             mae, mse, rmse, mape, mspe, corr = metric(preds, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(pred_scales, true_scales)
-            print('normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
-            print('denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses, maes, rmses, mapes, mspes, corrs))
+            print('normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae,
+                                                                                                             rmse, mape,
+                                                                                                             mspe,
+                                                                                                             corr))
+            print(
+                'denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses, maes,
+                                                                                                             rmses,
+                                                                                                             mapes,
+                                                                                                             mspes,
+                                                                                                             corrs))
         elif self.args.stacks == 2:
             preds = np.array(preds)
             trues = np.array(trues)
@@ -198,22 +219,32 @@ class Exp_ETTh(Exp_Basic):
 
             mae, mse, rmse, mape, mspe, corr = metric(mids, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(mid_scales, true_scales)
-            print('mid --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
-            print('mid --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses, maes, rmses, mapes, mspes, corrs))
+            print(
+                'mid --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse,
+                                                                                                                   mae,
+                                                                                                                   rmse,
+                                                                                                                   mape,
+                                                                                                                   mspe,
+                                                                                                                   corr))
+            print('mid --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(
+                mses, maes, rmses, mapes, mspes, corrs))
 
             mae, mse, rmse, mape, mspe, corr = metric(preds, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(pred_scales, true_scales)
-            print('final --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
-            print('final --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses, maes, rmses, mapes, mspes, corrs))
+            print('final --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(
+                mse, mae, rmse, mape, mspe, corr))
+            print(
+                'final --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(
+                    mses, maes, rmses, mapes, mspes, corrs))
         else:
             print('Error!')
 
         return total_loss
 
     def train(self, setting):
-        train_data, train_loader = self._get_data(flag = 'train')
-        valid_data, valid_loader = self._get_data(flag = 'val')
-        test_data, test_loader = self._get_data(flag = 'test')
+        train_data, train_loader = self._get_data(flag='train')
+        valid_data, valid_loader = self._get_data(flag='val')
+        test_data, test_loader = self._get_data(flag='test')
         path = os.path.join(self.args.checkpoints, setting)
         print(path)
         if not os.path.exists(path):
@@ -221,30 +252,31 @@ class Exp_ETTh(Exp_Basic):
         writer = SummaryWriter('event/run_ETTh/{}'.format(self.args.model_name))
 
         time_now = time.time()
-        
+
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
-        
+
         model_optim = self._select_optimizer()
-        criterion =  self._select_criterion(self.args.loss)
+        criterion = self._select_criterion(self.args.loss)
 
         if self.args.use_amp:
             scaler = torch.cuda.amp.GradScaler()
 
         if self.args.resume:
-            self.model, lr, epoch_start = load_model(self.model, path, model_name=self.args.data, horizon=self.args.horizon)
+            self.model, lr, epoch_start = load_model(self.model, path, model_name=self.args.data,
+                                                     horizon=self.args.horizon)
         else:
             epoch_start = 0
 
         for epoch in range(epoch_start, self.args.train_epochs):
             iter_count = 0
             train_loss = []
-            
+
             self.model.train()
             epoch_time = time.time()
-            for i, (batch_x,batch_y,batch_x_mark,batch_y_mark) in enumerate(train_loader):
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
                 iter_count += 1
-                
+
                 model_optim.zero_grad()
                 pred, pred_scale, mid, mid_scale, true, true_scale = self._process_one_batch_SCINet(
                     train_data, batch_x, batch_y)
@@ -257,17 +289,17 @@ class Exp_ETTh(Exp_Basic):
                     print('Error!')
 
                 train_loss.append(loss.item())
-                
-                if (i+1) % 100==0:
+
+                if (i + 1) % 100 == 0:
                     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                    speed = (time.time()-time_now)/iter_count
-                    left_time = speed*((self.args.train_epochs - epoch)*train_steps - i)
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((self.args.train_epochs - epoch) * train_steps - i)
                     print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
                     iter_count = 0
                     time_now = time.time()
-                
+
                 if self.args.use_amp:
-                    print('use amp')    
+                    print('use amp')
                     scaler.scale(loss).backward()
                     scaler.step(model_optim)
                     scaler.update()
@@ -275,7 +307,7 @@ class Exp_ETTh(Exp_Basic):
                     loss.backward()
                     model_optim.step()
 
-            print("Epoch: {} cost time: {}".format(epoch+1, time.time()-epoch_time))
+            print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
             train_loss = np.average(train_loss)
             print('--------start to validate-----------')
             valid_loss = self.valid(valid_data, valid_loader, criterion)
@@ -294,31 +326,31 @@ class Exp_ETTh(Exp_Basic):
                 print("Early stopping")
                 break
 
-            lr = adjust_learning_rate(model_optim, epoch+1, self.args)
-            
+            lr = adjust_learning_rate(model_optim, epoch + 1, self.args)
+
         save_model(epoch, lr, self.model, path, model_name=self.args.data, horizon=self.args.pred_len)
-        best_model_path = path+'/'+'checkpoint.pth'
+        best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
         return self.model
 
     def test(self, setting, evaluate=False):
         test_data, test_loader = self._get_data(flag='test')
-        
+
         self.model.eval()
-        
+
         preds = []
         trues = []
         mids = []
         pred_scales = []
         true_scales = []
         mid_scales = []
-        
+
         if evaluate:
             path = os.path.join(self.args.checkpoints, setting)
-            best_model_path = path+'/'+'checkpoint.pth'
+            best_model_path = path + '/' + 'checkpoint.pth'
             self.model.load_state_dict(torch.load(best_model_path))
 
-        for i, (batch_x,batch_y,batch_x_mark,batch_y_mark) in enumerate(test_loader):
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
             pred, pred_scale, mid, mid_scale, true, true_scale = self._process_one_batch_SCINet(
                 test_data, batch_x, batch_y)
 
@@ -352,8 +384,17 @@ class Exp_ETTh(Exp_Basic):
 
             mae, mse, rmse, mape, mspe, corr = metric(preds, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(pred_scales, true_scales)
-            print('normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
-            print('TTTT denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses, maes, rmses, mapes, mspes, corrs))
+            print('normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae,
+                                                                                                             rmse, mape,
+                                                                                                             mspe,
+                                                                                                             corr))
+            print(
+                'TTTT denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mses,
+                                                                                                                  maes,
+                                                                                                                  rmses,
+                                                                                                                  mapes,
+                                                                                                                  mspes,
+                                                                                                                  corrs))
 
         elif self.args.stacks == 2:
             preds = np.array(preds)
@@ -374,11 +415,19 @@ class Exp_ETTh(Exp_Basic):
 
             mae, mse, rmse, mape, mspe, corr = metric(mids, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(mid_scales, true_scales)
-            print('Mid --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
+            print(
+                'Mid --> normed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse,
+                                                                                                                   mae,
+                                                                                                                   rmse,
+                                                                                                                   mape,
+                                                                                                                   mspe,
+                                                                                                                   corr))
 
             mae, mse, rmse, mape, mspe, corr = metric(preds, trues)
             maes, mses, rmses, mapes, mspes, corrs = metric(pred_scales, true_scales)
-            print('TTTT Final --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
+            print(
+                'TTTT Final --> denormed mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(
+                    mse, mae, rmse, mape, mspe, corr))
 
         else:
             print('Error!')
@@ -390,14 +439,17 @@ class Exp_ETTh(Exp_Basic):
                 os.makedirs(folder_path)
 
             mae, mse, rmse, mape, mspe, corr = metric(preds, trues)
-            print('Test:mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse, mape, mspe, corr))
+            print(
+                'Test:mse:{:.4f}, mae:{:.4f}, rmse:{:.4f}, mape:{:.4f}, mspe:{:.4f}, corr:{:.4f}'.format(mse, mae, rmse,
+                                                                                                         mape, mspe,
+                                                                                                         corr))
 
             np.save(folder_path + 'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
             np.save(folder_path + 'pred.npy', preds)
             np.save(folder_path + 'true.npy', trues)
             np.save(folder_path + 'pred_scales.npy', pred_scales)
             np.save(folder_path + 'true_scales.npy', true_scales)
-            
+
         return mae, maes, mse, mses
 
     def _process_one_batch_SCINet(self, dataset_object, batch_x, batch_y):
@@ -411,17 +463,60 @@ class Exp_ETTh(Exp_Basic):
         else:
             print('Error!')
 
-        #if self.args.inverse:
+        # if self.args.inverse:
         outputs_scaled = dataset_object.inverse_transform(outputs)
         if self.args.stacks == 2:
             mid_scaled = dataset_object.inverse_transform(mid)
-        f_dim = -1 if self.args.features=='MS' else 0
-        batch_y = batch_y[:,-self.args.pred_len:,f_dim:].cuda()
+        f_dim = -1 if self.args.features == 'MS' else 0
+        batch_y = batch_y[:, -self.args.pred_len:, f_dim:].cuda()
         batch_y_scaled = dataset_object.inverse_transform(batch_y)
 
         if self.args.stacks == 1:
-            return outputs, outputs_scaled, 0,0, batch_y, batch_y_scaled
+            return outputs, outputs_scaled, 0, 0, batch_y, batch_y_scaled
         elif self.args.stacks == 2:
             return outputs, outputs_scaled, mid, mid_scaled, batch_y, batch_y_scaled
         else:
             print('Error!')
+
+    def showResult(self, setting):
+        test_data, test_loader = self._get_data(flag='pred')
+
+        self.model.eval()
+
+        seq_len = self.args.seq_len
+        label_len = self.args.label_len
+        pred_len = self.args.pred_len
+
+        preds = []
+        trues = []
+        mids = []
+        pred_scales = []
+        true_scales = []
+        mid_scales = []
+
+        path = os.path.join(self.args.checkpoints, setting)
+        best_model_path = path + '/' + 'checkpoint.pth'
+        self.model.load_state_dict(torch.load(best_model_path))
+
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(test_loader):
+            pred, pred_scale, mid, mid_scale, true, true_scale = self._process_one_batch_SCINet(
+                test_data, batch_x, batch_y)
+            break
+
+        show_provide = batch_x[0, :, :].detach().cpu().numpy()
+        show_pred = pred_scale[0, :, :].detach().cpu().numpy()
+        show_true = true_scale[0, :, :].detach().cpu().numpy()
+
+        for i in range(7):
+            plt.subplot(3, 3, i + 1)
+            x = []
+            # y1 = np.append(show_provide[:, i], show_pred[:, i])
+            # y2 = np.append(show_provide[:, i], show_true[:, i])
+            y1 = show_pred[:, i]
+            y2 = show_true[:, i]
+            for j in range(168):
+                x.append(j)
+            plt.plot(x, y1, 'r')
+            plt.plot(x, y2, 'b')
+
+        plt.show()
