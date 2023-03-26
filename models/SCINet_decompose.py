@@ -1,5 +1,3 @@
-
-
 import math
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -9,10 +7,12 @@ import argparse
 import numpy as np
 from models.SCINet import EncoderTree
 
+
 class moving_avg(nn.Module):
     """
     Moving average block to highlight the trend of time series
     """
+
     def __init__(self, kernel_size, stride):
         super(moving_avg, self).__init__()
         self.kernel_size = kernel_size
@@ -32,6 +32,7 @@ class series_decomp(nn.Module):
     """
     Series decomposition block
     """
+
     def __init__(self, kernel_size):
         super(series_decomp, self).__init__()
         self.moving_avg = moving_avg(kernel_size, stride=1)
@@ -41,15 +42,17 @@ class series_decomp(nn.Module):
         res = x - moving_mean
         return res, moving_mean
 
+
 class SCINet_decompose(nn.Module):
-    def __init__(self, output_len, input_len, input_dim = 9, hid_size = 1, num_stacks = 1,
-                num_levels = 3, concat_len = 0, groups = 1, kernel = 5, dropout = 0.5,
-                 single_step_output_One = 0, input_len_seg = 0, positionalE = False, modified = True, RIN=False):
+    def __init__(self, output_len, input_len, input_dim=9, attention_module='None', hid_size=1, num_stacks=1,
+                 num_levels=3, concat_len=0, groups=1, kernel=5, dropout=0.5,
+                 single_step_output_One=0, input_len_seg=0, positionalE=False, modified=True, RIN=False):
         super(SCINet_decompose, self).__init__()
 
         self.input_dim = input_dim
         self.input_len = input_len
         self.output_len = output_len
+        self.attention_module = attention_module
         self.hidden_size = hid_size
         self.num_levels = num_levels
         self.groups = groups
@@ -59,28 +62,32 @@ class SCINet_decompose(nn.Module):
         self.single_step_output_One = single_step_output_One
         self.concat_len = concat_len
         self.pe = positionalE
-        self.RIN=RIN
+        self.RIN = RIN
         self.decomp = series_decomp(25)
-        self.trend = nn.Linear(input_len,input_len)
-        self.trend_dec = nn.Linear(input_len,output_len)
+        self.trend = nn.Linear(input_len, input_len)
+        self.trend_dec = nn.Linear(input_len, output_len)
         self.blocks1 = EncoderTree(
+            input_len=self.input_len,
             in_planes=self.input_dim,
-            num_levels = self.num_levels,
-            kernel_size = self.kernel_size,
-            dropout = self.dropout,
-            groups = self.groups,
-            hidden_size = self.hidden_size,
-            INN =  modified)
+            attention_module=attention_module,
+            num_levels=self.num_levels,
+            kernel_size=self.kernel_size,
+            dropout=self.dropout,
+            groups=self.groups,
+            hidden_size=self.hidden_size,
+            INN=modified)
 
-        if num_stacks == 2: # we only implement two stacks at most.
+        if num_stacks == 2:  # we only implement two stacks at most.
             self.blocks2 = EncoderTree(
+                input_len=self.input_len,
                 in_planes=self.input_dim,
-            num_levels = self.num_levels,
-            kernel_size = self.kernel_size,
-            dropout = self.dropout,
-            groups = self.groups,
-            hidden_size = self.hidden_size,
-            INN =  modified)
+                attention_module=attention_module,
+                num_levels=self.num_levels,
+                kernel_size=self.kernel_size,
+                dropout=self.dropout,
+                groups=self.groups,
+                hidden_size=self.hidden_size,
+                INN=modified)
 
         self.stacks = num_stacks
 
@@ -94,28 +101,28 @@ class SCINet_decompose(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
         self.projection1 = nn.Conv1d(self.input_len, self.output_len, kernel_size=1, stride=1, bias=False)
-        if self.single_step_output_One: # only output the N_th timestep.
+        if self.single_step_output_One:  # only output the N_th timestep.
             if self.stacks == 2:
                 if self.concat_len:
                     self.projection2 = nn.Conv1d(self.concat_len + self.output_len, 1,
-                                                kernel_size = 1, bias = False)
+                                                 kernel_size=1, bias=False)
                 else:
                     self.projection2 = nn.Conv1d(self.input_len + self.output_len, 1,
-                                                kernel_size = 1, bias = False)
-        else: # output the N timesteps.
+                                                 kernel_size=1, bias=False)
+        else:  # output the N timesteps.
             if self.stacks == 2:
                 if self.concat_len:
                     self.projection2 = nn.Conv1d(self.concat_len + self.output_len, self.output_len,
-                                                kernel_size = 1, bias = False)
+                                                 kernel_size=1, bias=False)
                 else:
                     self.projection2 = nn.Conv1d(self.input_len + self.output_len, self.output_len,
-                                                kernel_size = 1, bias = False)
+                                                 kernel_size=1, bias=False)
 
         # For positional encoding
         self.pe_hidden_size = input_dim
         if self.pe_hidden_size % 2 == 1:
             self.pe_hidden_size += 1
-    
+
         num_timescales = self.pe_hidden_size // 2
         max_timescale = 10000.0
         min_timescale = 1.0
@@ -135,21 +142,23 @@ class SCINet_decompose(nn.Module):
             self.affine_bias = nn.Parameter(torch.zeros(1, 1, input_dim))
             self.affine_weight2 = nn.Parameter(torch.ones(1, 1, input_dim))
             self.affine_bias2 = nn.Parameter(torch.zeros(1, 1, input_dim))
-    
+
     def get_position_encoding(self, x):
         max_length = x.size()[1]
-        position = torch.arange(max_length, dtype=torch.float32, device=x.device)  # tensor([0., 1., 2., 3., 4.], device='cuda:0')
+        position = torch.arange(max_length, dtype=torch.float32,
+                                device=x.device)  # tensor([0., 1., 2., 3., 4.], device='cuda:0')
         temp1 = position.unsqueeze(1)  # 5 1
         temp2 = self.inv_timescales.unsqueeze(0)  # 1 256
         scaled_time = position.unsqueeze(1) * self.inv_timescales.unsqueeze(0)  # 5 256
-        signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1)  #[T, C]
+        signal = torch.cat([torch.sin(scaled_time), torch.cos(scaled_time)], dim=1)  # [T, C]
         signal = F.pad(signal, (0, 0, 0, self.pe_hidden_size % 2))
         signal = signal.view(1, max_length, self.pe_hidden_size)
-    
+
         return signal
 
     def forward(self, x):
-        assert self.input_len % (np.power(2, self.num_levels)) == 0 # evenly divided the input length into two parts. (e.g., 32 -> 16 -> 8 -> 4 for 3 levels)
+        assert self.input_len % (np.power(2,
+                                          self.num_levels)) == 0  # evenly divided the input length into two parts. (e.g., 32 -> 16 -> 8 -> 4 for 3 levels)
         x, trend = self.decomp(x)
 
         if self.RIN:
@@ -171,7 +180,6 @@ class SCINet_decompose(nn.Module):
             # pred_means2 = trend[:,-1,:].unsqueeze(1).repeat(1,self.output_len,1).detach()
             # trend = trend - seq_means2 
             trend = trend * self.affine_weight2 + self.affine_bias2
-        
 
         if self.pe:
             pe = self.get_position_encoding(x)
@@ -181,16 +189,15 @@ class SCINet_decompose(nn.Module):
                 x = x + self.get_position_encoding(x)
 
         ### activated when RIN flag is set ###
-        
 
         # the first stack
         res1 = x
         x = self.blocks1(x)
         x = self.projection1(x)
 
-        trend = trend.permute(0,2,1)
-        trend = self.trend(trend)  
-        trend = self.trend_dec(trend).permute(0,2,1)
+        trend = trend.permute(0, 2, 1)
+        trend = self.trend(trend)
+        trend = self.trend_dec(trend).permute(0, 2, 1)
 
         if self.stacks == 1:
             ### reverse RIN ###
@@ -212,14 +219,14 @@ class SCINet_decompose(nn.Module):
         elif self.stacks == 2:
             MidOutPut = x
             if self.concat_len:
-                x = torch.cat((res1[:, -self.concat_len:,:], x), dim=1)
+                x = torch.cat((res1[:, -self.concat_len:, :], x), dim=1)
             else:
                 x = torch.cat((res1, x), dim=1)
 
             # the second stack
             x = self.blocks2(x)
             x = self.projection2(x)
-            
+
             ### Reverse RIN ###
             if self.RIN:
                 MidOutPut = MidOutPut - self.affine_bias
@@ -245,6 +252,7 @@ def get_variable(x):
     x = Variable(x)
     return x.cuda() if torch.cuda.is_available() else x
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -264,9 +272,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    model = SCINet_decompose(output_len = args.horizon, input_len= args.window_size, input_dim = 9, hid_size = args.hidden_size, num_stacks = 1,
-                num_levels = 3, concat_len = 0, groups = args.groups, kernel = args.kernel, dropout = args.dropout,
-                 single_step_output_One = args.single_step_output_One, positionalE =  args.positionalEcoding, modified = True).cuda()
+    model = SCINet_decompose(output_len=args.horizon, input_len=args.window_size, input_dim=9,
+                             hid_size=args.hidden_size, num_stacks=1,
+                             num_levels=3, concat_len=0, groups=args.groups, kernel=args.kernel, dropout=args.dropout,
+                             single_step_output_One=args.single_step_output_One, positionalE=args.positionalEcoding,
+                             modified=True).cuda()
     x = torch.randn(32, 96, 9).cuda()
     y = model(x)
     print(y.shape)
