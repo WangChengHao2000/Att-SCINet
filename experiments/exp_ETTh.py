@@ -500,10 +500,8 @@ class Exp_ETTh(Exp_Basic):
                 test_data, batch_x, batch_y)
             break
 
-        show_provide = batch_x[0, :, :].detach().cpu().numpy()
-        show_pred = pred_scale[0, :, :].detach().cpu().numpy()
-        show_true = true_scale[0, :, :].detach().cpu().numpy()
+        show_pred = pred[0, :, :].detach().cpu().numpy()
+        show_true = true[0, :, :].detach().cpu().numpy()
 
-        pd.DataFrame(show_provide).to_csv(setting + '1.csv', index=False)
-        pd.DataFrame(show_pred).to_csv(setting + '2.csv', index=False)
-        pd.DataFrame(show_true).to_csv(setting + '3.csv', index=False)
+        pd.DataFrame(show_pred).to_csv(setting + '1.csv', index=False)
+        pd.DataFrame(show_true).to_csv(setting + '2.csv', index=False)
